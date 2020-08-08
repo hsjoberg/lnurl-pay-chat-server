@@ -1,0 +1,26 @@
+{
+  "name": "lnurl-pay-chat",
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "start": "yarn build && node --harmony-top-level-await dist/index.js"
+  },
+  "type": "module",
+  "version": "1.0.0",
+  "main": "index.js",
+  "author": "Hampus Sjöberg",
+  "license": "MIT",
+  "dependencies": {
+    "@types/bech32": "^1.1.2",
+    "@types/sqlite3": "^3.1.6",
+    "bech32": "^1.1.4",
+    "fastify": "^3.2.0",
+    "js-lnurl": "^0.2.3",
+    "ln-service": "^49.4.3",
+    "sqlite": "^4.0.12",
+    "sqlite3": "^5.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^14.0.27",
+    "typescript": "^3.9.7"
+  }
+}
