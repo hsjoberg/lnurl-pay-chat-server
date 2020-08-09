@@ -20,13 +20,10 @@ const responseMetadata = JSON.stringify([["text/plain", "Comment on lnurl-pay ch
 const messagesFromDb = await db.all("SELECT text FROM message ORDER BY id ASC LIMIT 1000");
 const messages = messagesFromDb.map(({ text }) => text);
 const socketUsers: Set<fastifyWebsocket.SocketStream> = new Set();
-console.log(
-  "LNURL encoded address to sendText:\n" +
-    bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/sendText`)), 1024)
-);
 
-let request = 0;
-const callbacks: Set<string> = new Set();
+server.get("/api/get-bech32", async function () {
+  return bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/sendText`)), 1024);
+});
 
 server.get("/api/receive-messages", { websocket: true }, (connection, req) => {
   console.log("WebSocket connection opened");
@@ -41,71 +38,57 @@ server.get("/api/receive-messages", { websocket: true }, (connection, req) => {
   });
 });
 
-interface ISendTextCallbackParams {
-  callback: string;
-}
 interface ISendTextCallbackQueryParams {
-  amount: string;
+  amount?: string;
   nonce?: string;
   fromnodes?: string;
   comment?: string;
 }
 
-server.get("/api/sendText", async () => {
-  const callback = crypto
-    .createHash("sha256")
-    .update(`${request++}`)
-    .digest("hex");
-  callbacks.add(callback);
+interface ILNUrlAuthParams {
+  amount: number;
+  comment: string;
+}
 
-  // Delete the callback after 1h
-  // TODO sync with invoice
-  setTimeout(() => callbacks.delete(callback), 1000 * 60 * 60);
-
+server.get("/api/send-text", async () => {
   return {
     tag: "payRequest",
-    callback: `${HOST}/api/sendTextCallback/${callback}`,
-    maxSendable: 1000,
-    minSendable: 1000,
+    callback: `${HOST}/api/send-text/callback`,
+    maxSendable: 10000,
+    minSendable: 10000,
     metadata: responseMetadata,
     commentAllowed: 144,
   };
 });
 
-server.get<{
-  Params: ISendTextCallbackParams;
-  Querystring: unknown;
-}>("/api/sendTextCallback/:callback", async (request, response) => {
-  const callback = request.params.callback;
-  if (!callbacks.has(callback)) {
-    console.error("Got invalid callback");
-    response.code(400);
-    response.send({
-      status: "ERROR",
-      reason: "Invalid request. Missing callback",
-    });
-    return;
-  }
-
+server.get("/api/send-text/callback", async (request, response) => {
   const query = request.query;
-  if (!validate_sendTextCallbackQueryParams(query)) {
+  if (!validateSendTextCallbackQueryParams(query)) {
     throw new Error("Invalid request. Missing params");
   }
-  const { amount, comment } = query;
+  const { amount, comment } = parseSendTextCallbackQueryParams(query);
 
   if (!comment) {
-    console.error("Got invalid comment");
+    console.error("Got missing comment");
     response.code(400);
     response.send({
       status: "ERROR",
       reason: "You must provide a comment",
     });
     return;
+  } else if (comment.length > 144) {
+    console.error("Got invalid comment length");
+    response.code(400);
+    response.send({
+      status: "ERROR",
+      reason: "Comment cannot be larger than 144 letters.",
+    });
+    return;
   }
 
   const invoice = await lnService.createInvoice({
     lnd,
-    tokens: Number.parseInt(amount, 10) / 1000,
+    tokens: amount / 1000,
     description: "Comment on lnurl-pay chat 📝",
     description_hash: crypto.createHash("sha256").update(responseMetadata).digest(),
   });
@@ -113,7 +96,7 @@ server.get<{
   response.send({
     pr: invoice.request,
     successAction: null,
-    disposable: false,
+    disposable: true,
   });
 
   const sub = await lnService.subscribeToInvoice({
@@ -123,7 +106,7 @@ server.get<{
 
   sub.on("invoice_updated", (invoice: any) => {
     if (invoice.is_confirmed) {
-      console.log(`${invoice.request.substring(0, 20)}... is confirmed!`);
+      console.log(`${invoice.request.substring(0, 50)}... is confirmed!`);
       db.run(
         `INSERT INTO message
         (text)
@@ -132,7 +115,6 @@ server.get<{
         { $text: comment }
       );
       messages.push(comment);
-      callbacks.delete(callback);
       socketUsers.forEach((socket) => {
         socket.socket.send(comment);
       });
@@ -140,8 +122,23 @@ server.get<{
   });
 });
 
-function validate_sendTextCallbackQueryParams(params: any): params is ISendTextCallbackQueryParams {
-  return true;
+function validateSendTextCallbackQueryParams(params: any): params is ISendTextCallbackQueryParams {
+  if (!params || params.amount !== "string" || params.comment !== "string") {
+    return true;
+  }
+  return false;
+}
+
+function parseSendTextCallbackQueryParams(params: ISendTextCallbackQueryParams): ILNUrlAuthParams {
+  try {
+    return {
+      amount: Number.parseInt(params.amount ?? "0", 10),
+      comment: params.comment ?? "",
+    };
+  } catch (e) {
+    console.error(e);
+    throw new Error("Could not parse query params");
+  }
 }
 
 server.get("/api/messages", async () => {
