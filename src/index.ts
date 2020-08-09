@@ -22,7 +22,7 @@ const messages = messagesFromDb.map(({ text }) => text);
 const socketUsers: Set<fastifyWebsocket.SocketStream> = new Set();
 
 server.get("/api/get-bech32", async function () {
-  return bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/sendText`)), 1024);
+  return bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/api/sendText`)), 1024);
 });
 
 server.get("/api/receive-messages", { websocket: true }, (connection, req) => {
