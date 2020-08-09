@@ -1,21 +1,25 @@
-import fastify from "fastify";
+import fastify, { WebsocketHandler } from "fastify";
+import fastifyWebsocket from "fastify-websocket";
+import fastifyCors from "fastify-cors";
 import lnService from "ln-service";
 import crypto from "crypto";
 import bech32 from "bech32";
-import { once, on } from "events";
 
 import lnd from "./setup-ln-service.js";
 import db from "./db.js";
 
 const HOST = process.env.HOST ?? "http://127.0.0.1:8080";
 console.log(HOST);
-const server = fastify();
 
-const responseMetadata = JSON.stringify([["text/plain", "Write a message"]]);
+const server = fastify();
+server.register(fastifyWebsocket, {});
+server.register(fastifyCors);
+
+const responseMetadata = JSON.stringify([["text/plain", "Comment on lnurl-pay chat 📝"]]);
 
 const messagesFromDb = await db.all("SELECT text FROM message ORDER BY id ASC LIMIT 1000");
 const messages = messagesFromDb.map(({ text }) => text);
-
+const socketUsers: Set<fastifyWebsocket.SocketStream> = new Set();
 console.log(
   "LNURL encoded address to sendText:\n" +
     bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/sendText`)), 1024)
@@ -23,6 +27,19 @@ console.log(
 
 let request = 0;
 const callbacks: Set<string> = new Set();
+
+server.get("/api/receive-messages", { websocket: true }, (connection, req) => {
+  console.log("WebSocket connection opened");
+
+  socketUsers.add(connection);
+  connection.socket.on("message", (message: any) => {
+    connection.socket.send("Hi from server");
+  });
+  connection.socket.on("close", () => {
+    socketUsers.delete(connection);
+    console.log("WebSocket connection closed");
+  });
+});
 
 interface ISendTextCallbackParams {
   callback: string;
@@ -34,7 +51,7 @@ interface ISendTextCallbackQueryParams {
   comment?: string;
 }
 
-server.get("/sendText", async () => {
+server.get("/api/sendText", async () => {
   const callback = crypto
     .createHash("sha256")
     .update(`${request++}`)
@@ -47,7 +64,7 @@ server.get("/sendText", async () => {
 
   return {
     tag: "payRequest",
-    callback: `${HOST}/sendTextCallback/${callback}`,
+    callback: `${HOST}/api/sendTextCallback/${callback}`,
     maxSendable: 1000,
     minSendable: 1000,
     metadata: responseMetadata,
@@ -58,10 +75,9 @@ server.get("/sendText", async () => {
 server.get<{
   Params: ISendTextCallbackParams;
   Querystring: unknown;
-}>("/sendTextCallback/:callback", async (request, response) => {
-  console.log("sendTextCallback");
+}>("/api/sendTextCallback/:callback", async (request, response) => {
   const callback = request.params.callback;
-  if (false && !callbacks.has(callback)) {
+  if (!callbacks.has(callback)) {
     console.error("Got invalid callback");
     response.code(400);
     response.send({
@@ -75,9 +91,7 @@ server.get<{
   if (!validate_sendTextCallbackQueryParams(query)) {
     throw new Error("Invalid request. Missing params");
   }
-  const { amount, comment, fromnodes, nonce } = query;
-  console.log(query);
-  console.log(comment);
+  const { amount, comment } = query;
 
   if (!comment) {
     console.error("Got invalid comment");
@@ -91,7 +105,7 @@ server.get<{
 
   const invoice = await lnService.createInvoice({
     lnd,
-    tokens: 1,
+    tokens: Number.parseInt(amount, 10) / 1000,
     description: "Comment on lnurl-pay chat 📝",
     description_hash: crypto.createHash("sha256").update(responseMetadata).digest(),
   });
@@ -119,6 +133,9 @@ server.get<{
       );
       messages.push(comment);
       callbacks.delete(callback);
+      socketUsers.forEach((socket) => {
+        socket.socket.send(comment);
+      });
     }
   });
 });
@@ -127,7 +144,7 @@ function validate_sendTextCallbackQueryParams(params: any): params is ISendTextC
   return true;
 }
 
-server.get("/messages", async () => {
+server.get("/api/messages", async () => {
   return {
     messages,
   };

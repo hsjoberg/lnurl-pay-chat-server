@@ -1,7 +1,8 @@
 import lnService from "ln-service";
 
-export default lnService.authenticatedLndGrpc({
+const { lnd } = lnService.authenticatedLndGrpc({
   cert: "base64-cert",
   macaroon: "base64-macaroon",
   socket: "127.0.0.1:10009",
 });
+export default lnd;

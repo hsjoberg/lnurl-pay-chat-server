@@ -14,6 +14,8 @@
     "@types/sqlite3": "^3.1.6",
     "bech32": "^1.1.4",
     "fastify": "^3.2.0",
+    "fastify-cors": "^4.1.0",
+    "fastify-websocket": "^2.0.7",
     "js-lnurl": "^0.2.3",
     "ln-service": "^49.4.3",
     "sqlite": "^4.0.12",
