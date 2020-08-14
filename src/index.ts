@@ -34,6 +34,12 @@ server.get("/api/ws", { websocket: true }, (connection, req) => {
   });
   connection.socket.on("close", () => {
     socketUsers.delete(connection);
+    sendToAllWebSocketConnections(
+      JSON.stringify({
+        type: "NUM_USERS",
+        data: socketUsers.size,
+      } as IWebSocketResponseNumUsers)
+    );
     console.log("WebSocket connection closed");
   });
 
