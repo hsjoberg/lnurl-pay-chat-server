@@ -22,20 +22,27 @@ const messages = messagesFromDb.map(({ text }) => text);
 const socketUsers: Set<fastifyWebsocket.SocketStream> = new Set();
 
 server.get("/api/get-bech32", async function () {
-  return bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/api/sendText`)), 1024);
+  return bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/api/send-text`)), 1024);
 });
 
-server.get("/api/receive-messages", { websocket: true }, (connection, req) => {
+server.get("/api/ws", { websocket: true }, (connection, req) => {
   console.log("WebSocket connection opened");
 
   socketUsers.add(connection);
-  connection.socket.on("message", (message: any) => {
+  connection.socket.on("message", () => {
     connection.socket.send("Hi from server");
   });
   connection.socket.on("close", () => {
     socketUsers.delete(connection);
     console.log("WebSocket connection closed");
   });
+
+  sendToAllWebSocketConnections(
+    JSON.stringify({
+      type: "NUM_USERS",
+      data: socketUsers.size,
+    } as IWebSocketResponseNumUsers)
+  );
 });
 
 interface ISendTextCallbackQueryParams {
@@ -115,9 +122,12 @@ server.get("/api/send-text/callback", async (request, response) => {
         { $text: comment }
       );
       messages.push(comment);
-      socketUsers.forEach((socket) => {
-        socket.socket.send(comment);
-      });
+      sendToAllWebSocketConnections(
+        JSON.stringify({
+          type: "MESSAGE",
+          data: comment,
+        } as IWebSocketResponseComment)
+      );
     }
   });
 });
@@ -139,6 +149,26 @@ function parseSendTextCallbackQueryParams(params: ISendTextCallbackQueryParams):
     console.error(e);
     throw new Error("Could not parse query params");
   }
+}
+
+function sendToAllWebSocketConnections(text: string) {
+  socketUsers.forEach((socket) => {
+    socket.socket.send(text);
+  });
+}
+
+interface IWebSocketResponse {
+  type: string;
+}
+
+interface IWebSocketResponseComment extends IWebSocketResponse {
+  type: "MESSAGE";
+  data: string;
+}
+
+interface IWebSocketResponseNumUsers extends IWebSocketResponse {
+  type: "NUM_USERS";
+  data: string | number | null;
 }
 
 server.get("/api/messages", async () => {
