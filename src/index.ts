@@ -1,6 +1,6 @@
-import fastify, { WebsocketHandler } from "fastify";
-import fastifyWebsocket from "fastify-websocket";
+import fastify from "fastify";
 import fastifyCors from "fastify-cors";
+import fastifyWebsocket, { SocketStream } from "fastify-websocket";
 import lnService from "ln-service";
 import crypto from "crypto";
 import bech32 from "bech32";
@@ -11,7 +11,9 @@ import db from "./db.js";
 const HOST = process.env.HOST ?? "http://127.0.0.1:8080";
 console.log(HOST);
 
-const server = fastify();
+const server = fastify({
+  ignoreTrailingSlash: true,
+});
 server.register(fastifyWebsocket, {});
 server.register(fastifyCors);
 
@@ -19,7 +21,7 @@ const responseMetadata = JSON.stringify([["text/plain", "Comment on lnurl-pay ch
 
 const messagesFromDb = await db.all("SELECT text FROM message ORDER BY id ASC LIMIT 1000");
 const messages = messagesFromDb.map(({ text }) => text);
-const socketUsers: Set<fastifyWebsocket.SocketStream> = new Set();
+const socketUsers: Set<SocketStream> = new Set();
 
 server.get("/api/get-bech32", async function () {
   return bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/api/send-text`)), 1024);
