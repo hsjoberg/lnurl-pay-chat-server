@@ -11,18 +11,18 @@
   "license": "MIT",
   "dependencies": {
     "@types/bech32": "^1.1.2",
-    "@types/sqlite3": "^3.1.6",
+    "@types/sqlite3": "3.1.7",
     "bech32": "^1.1.4",
-    "fastify": "^3.2.0",
-    "fastify-cors": "^4.1.0",
-    "fastify-websocket": "^2.0.7",
-    "js-lnurl": "^0.2.3",
-    "ln-service": "^49.4.3",
-    "sqlite": "^4.0.12",
-    "sqlite3": "^5.0.0"
+    "fastify": "3.11.0",
+    "fastify-cors": "5.2.0",
+    "fastify-websocket": "3.0.0",
+    "js-lnurl": "0.2.5",
+    "ln-service": "50.11.10",
+    "sqlite": "4.0.19",
+    "sqlite3": "5.0.1"
   },
   "devDependencies": {
-    "@types/node": "^14.0.27",
-    "typescript": "^3.9.7"
+    "@types/node": "14.14.25",
+    "typescript": "4.1.3"
   }
 }
