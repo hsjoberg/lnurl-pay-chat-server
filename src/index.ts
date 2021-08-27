@@ -17,7 +17,10 @@ const server = fastify({
 server.register(fastifyWebsocket, {});
 server.register(fastifyCors);
 
-const responseMetadata = JSON.stringify([["text/plain", "Comment on lnurl-pay chat 📝"]]);
+const responseMetadata = JSON.stringify([
+  ["text/plain", "Message on lnurl-pay chat 📝"],
+  ["text/long-desc", "Write a message to be displayed on chat.blixtwallet.com.\n\nOnce the payment goes through, your message will be displayed on the web page."],
+]);
 
 const messagesFromDb = await db.all("SELECT text FROM message ORDER BY id ASC LIMIT 1000");
 const messages = messagesFromDb.map(({ text }) => text);
