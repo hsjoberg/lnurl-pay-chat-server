@@ -60,9 +60,9 @@ interface ISendTextCallbackQueryParams {
   comment?: string;
 }
 
-interface ILNUrlAuthParams {
+interface ILNUrlPayParams {
   amount: number;
-  comment: string;
+  comment?: string;
 }
 
 server.get("/api/send-text", async () => {
@@ -141,13 +141,13 @@ server.get("/api/send-text/callback", async (request, response) => {
 });
 
 function validateSendTextCallbackQueryParams(params: any): params is ISendTextCallbackQueryParams {
-  if (!params || params.amount !== "string" || params.comment !== "string") {
-    return true;
+  if (!params || typeof params.amount !== "string" || typeof params.comment !== "string") {
+    return false;
   }
-  return false;
+  return true;
 }
 
-function parseSendTextCallbackQueryParams(params: ISendTextCallbackQueryParams): ILNUrlAuthParams {
+function parseSendTextCallbackQueryParams(params: ISendTextCallbackQueryParams): ILNUrlPayParams {
   try {
     return {
       amount: Number.parseInt(params.amount ?? "0", 10),
