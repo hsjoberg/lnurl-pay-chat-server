@@ -18,7 +18,7 @@ server.register(fastifyWebsocket, {});
 server.register(fastifyCors);
 
 const responseMetadata = JSON.stringify([
-  ["text/plain", "Message on lnurl-pay chat 📝"],
+  ["text/plain", "lnurl-pay chat:  Comment 📝"],
   ["text/long-desc", "Write a message to be displayed on chat.blixtwallet.com.\n\nOnce the payment goes through, your message will be displayed on the web page."],
 ]);
 
@@ -107,7 +107,6 @@ server.get("/api/send-text/callback", async (request, response) => {
   const invoice = await lnService.createInvoice({
     lnd,
     tokens: amount / 1000,
-    description: "Comment on lnurl-pay chat 📝",
     description_hash: crypto.createHash("sha256").update(responseMetadata).digest(),
   });
 
