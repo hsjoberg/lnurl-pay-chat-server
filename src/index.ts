@@ -76,6 +76,7 @@ server.get("/api/send-text", async () => {
     minSendable: 10000,
     metadata: responseMetadata,
     commentAllowed: 144,
+    disposable: false,
   };
 });
 
