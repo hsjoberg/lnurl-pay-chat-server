@@ -76,7 +76,6 @@ server.get("/api/send-text", async () => {
     minSendable: 10000,
     metadata: responseMetadata,
     commentAllowed: 144,
-    disposable: false,
   };
 });
 
@@ -114,7 +113,7 @@ server.get("/api/send-text/callback", async (request, response) => {
   response.send({
     pr: invoice.request,
     successAction: null,
-    disposable: true,
+    disposable: false,
   });
 
   const sub = await lnService.subscribeToInvoice({
