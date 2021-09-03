@@ -64,7 +64,7 @@ interface ISendTextCallbackQueryParams {
 }
 
 interface ILNUrlPayParams {
-  amount: number;
+  amount?: number;
   comment?: string;
 }
 
@@ -81,17 +81,23 @@ server.get("/api/send-text", async () => {
 
 server.get("/api/send-text/callback", async (request, response) => {
   const query = request.query;
-  if (!validateSendTextCallbackQueryParams(query)) {
-    throw new Error("Invalid request. Missing params");
-  }
   const { amount, comment } = parseSendTextCallbackQueryParams(query);
 
+  if (!amount || amount < 10 || Number.isNaN(amount)) {
+    console.error("Got wrong amount");
+    response.code(400);
+    response.send({
+      status: "ERROR",
+      reason: "You must provide an amount and it must be higher than or equal to 10 sats.",
+    });
+    return;
+  }
   if (!comment) {
     console.error("Got missing comment");
     response.code(400);
     response.send({
       status: "ERROR",
-      reason: "You must provide a comment",
+      reason: "You must provide a comment.",
     });
     return;
   } else if (comment.length > 144) {
@@ -149,11 +155,11 @@ function validateSendTextCallbackQueryParams(params: any): params is ISendTextCa
   return true;
 }
 
-function parseSendTextCallbackQueryParams(params: ISendTextCallbackQueryParams): ILNUrlPayParams {
+function parseSendTextCallbackQueryParams(params: any): ILNUrlPayParams {
   try {
     return {
-      amount: Number.parseInt(params.amount ?? "0", 10),
-      comment: params.comment ?? "",
+      amount: params.amount ? Number.parseInt(params.amount, 10) : undefined,
+      comment: params.comment ?? undefined,
     };
   } catch (e) {
     console.error(e);
