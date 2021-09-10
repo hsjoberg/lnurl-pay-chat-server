@@ -1,3 +1,5 @@
+src/config.ts
+
 node_modules
 setup-ln-service.ts
 database.db

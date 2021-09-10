@@ -5,10 +5,11 @@ import lnService from "ln-service";
 import crypto from "crypto";
 import bech32 from "bech32";
 
+import { config } from "./config.js";
 import lnd from "./setup-ln-service.js";
 import db from "./db.js";
 
-const HOST = process.env.HOST ?? "http://127.0.0.1:8080";
+const HOST = config.url;
 console.log(HOST);
 
 const server = fastify({
