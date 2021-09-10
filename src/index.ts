@@ -9,9 +9,6 @@ import { config } from "./config.js";
 import lnd from "./setup-ln-service.js";
 import db from "./db.js";
 
-const HOST = config.url;
-console.log(HOST);
-
 const server = fastify({
   ignoreTrailingSlash: true,
 });
@@ -28,7 +25,7 @@ const messages = messagesFromDb.map(({ text }) => text);
 const socketUsers: Set<SocketStream> = new Set();
 
 server.get("/api/get-bech32", async function () {
-  return bech32.encode("lnurl", bech32.toWords(new Buffer(`${HOST}/api/send-text`)), 1024);
+  return bech32.encode("lnurl", bech32.toWords(new Buffer(`${config.url}/api/send-text`)), 1024);
 });
 
 server.get("/api/ws", { websocket: true }, (connection, req) => {
@@ -72,7 +69,7 @@ interface ILNUrlPayParams {
 server.get("/api/send-text", async () => {
   return {
     tag: "payRequest",
-    callback: `${HOST}/api/send-text/callback`,
+    callback: `${config.url}/api/send-text/callback`,
     maxSendable: 10000,
     minSendable: 10000,
     metadata: responseMetadata,
@@ -194,7 +191,10 @@ server.get("/api/messages", async () => {
   };
 });
 
-server.listen(8080, "0.0.0.0", (err, address) => {
+const ip = config.host.split(":")[0];
+const port = config.host.split(":")[1];
+
+server.listen(port, ip, (err, address) => {
   if (err) {
     console.error(err);
     process.exit(1);
