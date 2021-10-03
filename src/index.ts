@@ -20,6 +20,10 @@ const responseMetadata = JSON.stringify([
   ["text/long-desc", "Write a message to be displayed on chat.blixtwallet.com.\n\nOnce the payment goes through, your message will be displayed on the web page."],
 ]);
 
+const payerData = {
+  name: { mandatory: false },
+};
+
 const messagesFromDb = await db.all("SELECT text FROM message ORDER BY id ASC LIMIT 1000");
 const messages = messagesFromDb.map(({ text }) => text);
 const socketUsers: Set<SocketStream> = new Set();
@@ -54,6 +58,37 @@ server.get("/api/ws", { websocket: true }, (connection, req) => {
   );
 });
 
+export interface IPayerData {
+  name?: {
+    mandatory: boolean;
+  };
+  pubkey?: {
+    mandatory: boolean;
+  };
+  identifier?: {
+    mandatory: boolean;
+  };
+  email?: {
+    mandatory: boolean;
+  };
+  auth?: {
+    mandatory?: boolean;
+    k1?: string; // hex
+  };
+};
+
+export interface IPayerDataResponse {
+  name?: string;
+  pubkey?: string; // hex
+  auth?: {
+    key: string;
+    k1: string;
+    sig: string; // hex
+  },
+  email?: string;
+  identifier?: string;
+}
+
 interface ISendTextCallbackQueryParams {
   amount?: string;
   nonce?: string;
@@ -64,6 +99,7 @@ interface ISendTextCallbackQueryParams {
 interface ILNUrlPayParams {
   amount?: number;
   comment?: string;
+  payerdata?: IPayerDataResponse;
 }
 
 server.get("/api/send-text", async () => {
@@ -74,12 +110,13 @@ server.get("/api/send-text", async () => {
     minSendable: 10000,
     metadata: responseMetadata,
     commentAllowed: 144,
+    payerData,
   };
 });
 
 server.get("/api/send-text/callback", async (request, response) => {
   const query = request.query;
-  const { amount, comment } = parseSendTextCallbackQueryParams(query);
+  const { amount, comment, payerdata } = parseSendTextCallbackQueryParams(query);
 
   if (!amount || amount < 10 || Number.isNaN(amount)) {
     console.error("Got wrong amount");
@@ -108,10 +145,15 @@ server.get("/api/send-text/callback", async (request, response) => {
     return;
   }
 
+  let dataToHash = responseMetadata;
+  if (payerdata?.name) {
+    dataToHash += (query as any).payerdata;
+  }
+
   const invoice = await lnService.createInvoice({
     lnd,
     tokens: amount / 1000,
-    description_hash: crypto.createHash("sha256").update(responseMetadata).digest(),
+    description_hash: crypto.createHash("sha256").update(dataToHash).digest(),
   });
 
   response.send({
@@ -126,6 +168,7 @@ server.get("/api/send-text/callback", async (request, response) => {
   });
 
   sub.on("invoice_updated", (invoice: any) => {
+    const nameDescedComment = payerdata?.name ? (payerdata.name + ":  " + comment) : comment
     if (invoice.is_confirmed) {
       console.log(`${invoice.request.substring(0, 50)}... is confirmed!`);
       db.run(
@@ -133,13 +176,15 @@ server.get("/api/send-text/callback", async (request, response) => {
         (text)
         VALUES
         ($text)`,
-        { $text: comment }
+        {
+          $text: nameDescedComment
+        }
       );
-      messages.push(comment);
+      messages.push(nameDescedComment);
       sendToAllWebSocketConnections(
         JSON.stringify({
           type: "MESSAGE",
-          data: comment,
+          data: nameDescedComment,
         } as IWebSocketResponseComment)
       );
     }
@@ -158,6 +203,7 @@ function parseSendTextCallbackQueryParams(params: any): ILNUrlPayParams {
     return {
       amount: params.amount ? Number.parseInt(params.amount, 10) : undefined,
       comment: params.comment ?? undefined,
+      payerdata: params.payerdata ? JSON.parse(params.payerdata) : undefined,
     };
   } catch (e) {
     console.error(e);
