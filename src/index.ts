@@ -24,8 +24,12 @@ const payerData = {
   name: { mandatory: false },
 };
 
-const messagesFromDb = await db.all("SELECT text FROM message ORDER BY id ASC LIMIT 1000");
-const messages = messagesFromDb.map(({ text }) => text);
+interface IMessage {
+  text: string;
+  timestamp: number;
+}
+
+const messages: IMessage[] = await db.all("SELECT text, timestamp FROM message ORDER BY id ASC LIMIT 1000");
 const socketUsers: Set<SocketStream> = new Set();
 
 server.get("/api/get-bech32", async function () {
@@ -168,23 +172,32 @@ server.get("/api/send-text/callback", async (request, response) => {
   });
 
   sub.on("invoice_updated", (invoice: any) => {
-    const nameDescedComment = payerdata?.name ? (payerdata.name + ":  " + comment) : comment
+    const nameDescedComment = payerdata?.name ? (payerdata.name + ":  " + comment) : comment;
+    const timestamp = new Date().getTime();
+
     if (invoice.is_confirmed) {
       console.log(`${invoice.request.substring(0, 50)}... is confirmed!`);
       db.run(
         `INSERT INTO message
-        (text)
+        (text, timestamp)
         VALUES
-        ($text)`,
+        ($text, $timestamp)`,
         {
-          $text: nameDescedComment
+          $text: nameDescedComment,
+          $timestamp: timestamp,
         }
       );
-      messages.push(nameDescedComment);
+      messages.push({
+        text: nameDescedComment,
+        timestamp,
+      });
       sendToAllWebSocketConnections(
         JSON.stringify({
           type: "MESSAGE",
-          data: nameDescedComment,
+          data: JSON.stringify({
+            text: nameDescedComment,
+            timestamp,
+          }),
         } as IWebSocketResponseComment)
       );
     }
