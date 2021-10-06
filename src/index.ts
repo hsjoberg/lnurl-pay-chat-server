@@ -3,7 +3,7 @@ import fastifyCors from "fastify-cors";
 import fastifyWebsocket, { SocketStream } from "fastify-websocket";
 import lnService from "ln-service";
 import crypto from "crypto";
-import bech32 from "bech32";
+import { bech32 } from "bech32";
 
 import { config } from "./config.js";
 import lnd from "./setup-ln-service.js";
