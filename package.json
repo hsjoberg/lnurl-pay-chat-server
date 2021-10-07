@@ -2,7 +2,7 @@
   "name": "lnurl-pay-chat",
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "start": "yarn build && node --harmony-top-level-await dist/index.js"
+    "start": "npm run build && node --harmony-top-level-await dist/index.js"
   },
   "type": "module",
   "version": "1.0.0",
