@@ -195,8 +195,8 @@ server.get("/api/send-text/callback", async (request, response) => {
         JSON.stringify({
           type: "MESSAGE",
           data: JSON.stringify({
-            text: nameDescedComment,
-            timestamp,
+            m: nameDescedComment,
+            ts: timestamp,
           }),
         } as IWebSocketResponseComment)
       );
@@ -246,7 +246,10 @@ interface IWebSocketResponseNumUsers extends IWebSocketResponse {
 
 server.get("/api/messages", async () => {
   return {
-    messages,
+    messages: messages.map((message) => ({
+      m: message.text,
+      ts: message.timestamp,
+    })),
   };
 });
 
