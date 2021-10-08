@@ -157,6 +157,7 @@ server.get("/api/send-text/callback", async (request, response) => {
   const invoice = await lnService.createInvoice({
     lnd,
     tokens: amount / 1000,
+    description: "lnurl-pay chat message",
     description_hash: crypto.createHash("sha256").update(dataToHash).digest(),
   });
 
