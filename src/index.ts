@@ -15,10 +15,16 @@ const server = fastify({
 server.register(fastifyWebsocket, {});
 server.register(fastifyCors);
 
-const responseMetadata = JSON.stringify([
+const responseMetadataArray = ([
   ["text/plain", "lnurl-pay chat:  Comment 📝"],
   ["text/long-desc", "Write a message to be displayed on chat.blixtwallet.com.\n\nOnce the payment goes through, your message will be displayed on the web page."],
 ]);
+if (config.lightningAddress) {
+  responseMetadataArray.push(
+    ["text/identifier", config.lightningAddress]
+  );
+}
+const responseMetadata = JSON.stringify(responseMetadataArray);
 
 const payerData = {
   name: { mandatory: false },
