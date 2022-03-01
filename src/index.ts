@@ -128,7 +128,7 @@ server.get("/api/send-text/callback", async (request, response) => {
   const query = request.query;
   const { amount, comment, payerdata } = parseSendTextCallbackQueryParams(query);
 
-  if (!amount || amount < 10 || Number.isNaN(amount)) {
+  if (!amount || amount < 1000 || Number.isNaN(amount)) {
     console.error("Got wrong amount");
     response.code(400);
     response.send({
