@@ -26,8 +26,9 @@ if (config.lightningAddress) {
 }
 const responseMetadata = JSON.stringify(responseMetadataArray);
 
-const payerData = {
+const payerData: IPayerData = {
   name: { mandatory: false },
+  identifier: { mandatory: false },
 };
 
 interface IMessage {
@@ -156,7 +157,7 @@ server.get("/api/send-text/callback", async (request, response) => {
   }
 
   let dataToHash = responseMetadata;
-  if (payerdata?.name) {
+  if (payerdata?.name || payerdata?.identifier) {
     dataToHash += (query as any).payerdata;
   }
 
@@ -179,7 +180,21 @@ server.get("/api/send-text/callback", async (request, response) => {
   });
 
   sub.on("invoice_updated", (invoice: any) => {
-    const nameDescedComment = payerdata?.name ? (payerdata.name + ":  " + comment) : comment;
+    let nameDescedComment = comment;
+
+    // Both name and identifier
+    if (payerdata?.name && payerdata?.identifier) {
+      nameDescedComment = `${payerdata.name} (⚡${payerdata?.identifier}):  ${comment}`;
+    }
+    // Only name
+    else if (payerdata?.name && !payerdata?.identifier) {
+      nameDescedComment = `${payerdata.name}:  ${comment}`;
+    }
+    // Only identifier
+    else if (!payerdata?.name && payerdata?.identifier) {
+      nameDescedComment = `⚡${payerdata.identifier}:  ${comment}`;
+    }
+
     const timestamp = new Date().getTime();
 
     if (invoice.is_confirmed) {
